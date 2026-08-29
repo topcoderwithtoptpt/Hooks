@@ -1,0 +1,8 @@
+{
+  "name": "MicHook",
+  "description": "LSposed microphone audio injection and hook manager for Android",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

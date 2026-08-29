@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Default target package scope for LSposed Module -->
+    <string-array name="xposedscope">
+        <item>com.target.app.package</item>
+    </string-array>
+</resources>

@@ -1,0 +1,5 @@
+# ninja log v5
+0	116	1787977107357710919	CMakeFiles/michook_native.dir/mic_hook.cpp.o	ec0481630997635f
+116	148	1787977107389710919	/home/ubuntu/LSPosedMic_build/project/app/build/intermediates/cxx/Debug/3tg3r442/obj/arm64-v8a/libmichook_native.so	6b0c0d31e461c64f
+1	111	1787977139957710934	CMakeFiles/michook_native.dir/mic_hook.cpp.o	ec0481630997635f
+111	140	1787977139989710934	/home/ubuntu/LSPosedMic_build/project/app/build/intermediates/cxx/Debug/3tg3r442/obj/arm64-v8a/libmichook_native.so	6b0c0d31e461c64f

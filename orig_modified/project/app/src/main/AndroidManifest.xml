@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="false"
+        android:label="MicHook"
+        android:hasCode="true">
+
+        <!-- ── LSposed Module Declaration Trinity ── -->
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true"/>
+
+        <meta-data
+            android:name="xposeddescription"
+            android:value="Hooks all mic paths (Java + AAudio + OpenSLES) and injects MP3 audio per-app"/>
+
+        <meta-data
+            android:name="xposedminversion"
+            android:value="93"/>
+
+        <!-- Scope: user selects target app in LSposed Manager UI -->
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposedscope"/>
+
+    </application>
+
+</manifest>

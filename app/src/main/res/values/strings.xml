@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MicHook</string>
+    <string name="xposed_description">Hooks all microphone paths (Java AudioRecord, MediaRecorder, AAudio, OpenSLES, libaudioclient) and injects custom PCM audio per-app</string>
+</resources>

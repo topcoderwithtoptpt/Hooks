@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Default scope — user can override / add targets in LSposed Manager.
+        Replace with the actual target package, or leave blank and select in UI.
+    -->
+    <string-array name="xposedscope">
+        <item>com.target.app.package</item>
+    </string-array>
+</resources>

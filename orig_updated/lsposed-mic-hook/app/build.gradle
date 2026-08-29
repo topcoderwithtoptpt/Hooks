@@ -1,0 +1,172 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+// ── ShadowHook AAR coordinates ───────────────────────────────────────────────
+// JitPack resolves  com.github.bytedance:android-inline-hook  to the
+// android-inline-hook repo tagged  shadowhook-1.0.9
+ext.shadowhookVersion = 'shadowhook-1.0.9'
+
+// ── Unpack ShadowHook AAR before CMake runs ──────────────────────────────────
+//
+// Gradle downloads the AAR into its cache.  This task extracts:
+//   jni/include/shadowhook.h          → src/main/cpp/shadowhook/include/
+//   jni/<abi>/libshadowhook.so        → src/main/cpp/shadowhook/libs/<abi>/
+//
+// It runs automatically as a dependency of every CMake configuration step.
+configurations {
+    shadowhookAar
+}
+
+dependencies {
+    // Used only for extraction — not added to the compile/runtime classpath
+    shadowhookAar("com.github.bytedance:android-inline-hook:${shadowhookVersion}@aar")
+}
+
+def shadowhookCppDir = file("src/main/cpp/shadowhook")
+
+tasks.register('extractShadowhook') {
+    group = 'build setup'
+    description = 'Unpacks libshadowhook.so and shadowhook.h from the AAR.'
+
+    def aarFile = configurations.shadowhookAar.resolvedConfiguration
+                      .resolvedArtifacts
+                      .find { it.name == 'android-inline-hook' || it.name.contains('shadowhook') }
+                      ?.file
+
+    outputs.dir(shadowhookCppDir)
+
+    doFirst {
+        // Re-resolve inside doFirst so configuration is never resolved at
+        // configuration time (avoids Gradle warning about cross-config resolution)
+        def resolvedAar = configurations.shadowhookAar
+                              .resolvedConfiguration
+                              .resolvedArtifacts
+                              .first()
+                              .file
+        logger.lifecycle("Extracting ShadowHook from: ${resolvedAar}")
+
+        def tmp = file("${buildDir}/shadowhook-aar-exploded")
+        tmp.deleteDir()
+        tmp.mkdirs()
+
+        // AAR is a ZIP
+        copy {
+            from zipTree(resolvedAar)
+            into tmp
+        }
+
+        // ── Header ──────────────────────────────────────────────────────────
+        def includeDir = file("${shadowhookCppDir}/include")
+        includeDir.mkdirs()
+
+        def headerSrc = file("${tmp}/jni/include/shadowhook.h")
+        if (headerSrc.exists()) {
+            copy { from headerSrc; into includeDir }
+            logger.lifecycle("  ✓ shadowhook.h → ${includeDir}")
+        } else {
+            throw new GradleException("shadowhook.h not found in AAR at ${headerSrc}")
+        }
+
+        // ── Native libraries ─────────────────────────────────────────────────
+        def abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+        abis.each { abi ->
+            def soSrc  = file("${tmp}/jni/${abi}/libshadowhook.so")
+            def libDir = file("${shadowhookCppDir}/libs/${abi}")
+            libDir.mkdirs()
+            if (soSrc.exists()) {
+                copy { from soSrc; into libDir }
+                logger.lifecycle("  ✓ libshadowhook.so [${abi}] → ${libDir}")
+            } else {
+                logger.warn("  ⚠ libshadowhook.so not found for ABI ${abi} — skipping")
+            }
+        }
+    }
+}
+
+// Wire extractShadowhook before every CMake configuration/build task
+afterEvaluate {
+    tasks.matching { t ->
+        t.name.startsWith('configureCMake') ||
+        t.name.startsWith('buildCMake')     ||
+        t.name.startsWith('externalNativeBuild')
+    }.configureEach { t ->
+        t.dependsOn 'extractShadowhook'
+    }
+}
+
+android {
+    namespace 'com.lo.michook'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.lo.michook"
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -O2"
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    // ── Package libshadowhook.so inside the APK ──────────────────────────────
+    // The .so must travel with the APK so the dynamic linker can load it when
+    // System.loadLibrary("shadowhook") is invoked from our native init path.
+    sourceSets {
+        main {
+            jniLibs {
+                // At build time the extracted .so files sit here:
+                srcDirs += ['src/main/cpp/shadowhook/libs']
+            }
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+        // Keep .so files uncompressed so the OS can mmap them directly
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+}
+
+dependencies {
+    // LSposed API — compileOnly: doesn't ship inside the APK
+    compileOnly("io.github.libxposed:api:100")
+    compileOnly("io.github.libxposed:api:100:sources")
+
+    // ShadowHook Kotlin/Java shim (initialises the native engine from Kotlin)
+    implementation "com.github.bytedance:android-inline-hook:${shadowhookVersion}"
+}
